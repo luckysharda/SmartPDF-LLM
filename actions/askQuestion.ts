@@ -1,6 +1,7 @@
 "use server";
 import { Message } from "@/components/Chat";
 import { adminDb } from "@/firebaseAdmin";
+
 import { generateLangchainCompletion } from "@/lib/langchain";
 // import { generateLangchainCompletion } from "@/lib/langchain";
 import { auth } from "@clerk/nextjs/server";
@@ -23,6 +24,31 @@ export async function askQuestion(id: string, question: string) {
   const userMessages = chatSnapshot.docs.filter(
     (doc) => doc.data().role === "human"
   );
+  const userRef = await adminDb.collection("users").doc(userId!).get();
+  console.log("DEBUG 2", userRef.data());
+
+
+    if (!userRef.data()?.hasActiveMembership) {
+    console.log("Debug 3", userMessages.length, FREE_LIMIT);
+    if (userMessages.length >= FREE_LIMIT) {
+      return {
+        success: false,
+        message: `You'll need to upgrade to PRO to ask more than ${FREE_LIMIT} questions! 😢`,
+      };
+    }
+  }
+
+  // check if user is on PRO plan and has asked more than 100 questions
+  if (userRef.data()?.hasActiveMembership) {
+    console.log("Debug 4", userMessages.length, PRO_LIMIT);
+    if (userMessages.length >= PRO_LIMIT) {
+      return {
+        success: false,
+        message: `You've reached the PRO limit of ${PRO_LIMIT} questions per document! 😢`,
+      };
+    }
+  }
+
 
     const userMessage: Message = {
     role: "human",
